@@ -22,8 +22,28 @@ IConfiguration configuration = new ConfigurationBuilder()
 var builder = WebApplication.CreateBuilder(args);
 
 // DB
-Roblox.Services.Database.Configure(configuration.GetSection("Postgres").Value!);
-Roblox.Services.Cache.Configure(configuration.GetSection("Redis").Value!);
+// 1. Fetch Railway's automatically injected PostgreSQL environment variable
+string pgConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+// 2. Fall back to appsettings.json "Postgres" key if running locally
+if (string.IsNullOrEmpty(pgConnectionString))
+{
+    pgConnectionString = configuration.GetSection("Postgres").Value!;
+}
+
+// 3. Fallback check to prevent an ambiguous driver crash
+if (string.IsNullOrEmpty(pgConnectionString))
+{
+    throw new InvalidOperationException("CRITICAL: The PostgreSQL connection string is missing. Check your 'DATABASE_URL' variable setup.");
+}
+
+// 4. Configure the system services
+Roblox.Services.Database.Configure(pgConnectionString);
+
+// Do the exact same thing for Redis if it's deployed in Railway
+string redisConnectionString = Environment.GetEnvironmentVariable("REDIS_URL") 
+                               ?? configuration.GetSection("Redis").Value!;
+Roblox.Services.Cache.Configure(redisConnectionString);
 
 // Config
 Roblox.Configuration.CdnBaseUrl = configuration.GetSection("CdnBaseUrl").Value!;
