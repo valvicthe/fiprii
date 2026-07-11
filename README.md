@@ -10,6 +10,8 @@
 
 this is just a really skidded economy simulator :sob:
 
+by Playuncle Farti
+
 pekora discord bot : https://github.com/tooblewtf/pekora-discord-bot
 pekora clients : https://github.com/tooblewtf/pekora-client
 
