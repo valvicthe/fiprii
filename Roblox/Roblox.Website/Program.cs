@@ -24,28 +24,37 @@ var builder = WebApplication.CreateBuilder(args);
 // DB
 string pgConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-// Handled both postgres:// and postgresql:// URL schemes
 if (!string.IsNullOrEmpty(pgConnectionString) && 
     (pgConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
      pgConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
 {
     try
     {
-        // Replace scheme prefix cleanly so the .NET Uri parser handles the host/user mapping correctly
+        // Cleanly standardize the prefix scheme
         if (pgConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
             pgConnectionString = "postgres://" + pgConnectionString.Substring(13);
         }
 
         var databaseUri = new Uri(pgConnectionString);
-        var userInfo = databaseUri.UserInfo.Split(':');
+        
+        // Defensive Check: Handle cases where UserInfo might be null or empty
+        string username = string.Empty;
+        string password = string.Empty;
+        
+        if (!string.IsNullOrEmpty(databaseUri.UserInfo))
+        {
+            var userInfo = databaseUri.UserInfo.Split(':');
+            username = userInfo[0];
+            password = userInfo.Length > 1 ? userInfo[1] : string.Empty;
+        }
 
         var connectionStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder
         {
             Host = databaseUri.Host,
             Port = databaseUri.Port,
-            Username = userInfo[0],
-            Password = userInfo.Length > 1 ? userInfo[1] : string.Empty,
+            Username = username,
+            Password = password,
             Database = databaseUri.LocalPath.TrimStart('/'),
             Pooling = true,
             SslMode = Npgsql.SslMode.Require, 
@@ -61,8 +70,16 @@ if (!string.IsNullOrEmpty(pgConnectionString) &&
 }
 else
 {
-    // Local / Admin development fallback configuration check
-    var fallbackConfig = configuration.GetSection("Postgres").Value;
+    // Defensive Check: Safely resolve configuration via the top-level builder instance
+    // This replaces any potentially uninitialized 'configuration' variables
+    string? fallbackConfig = null;
+    
+    if (typeof(Program).Assembly != null) 
+    {
+        // Uses the standard WebApplication builder context safely
+        fallbackConfig = builder.Configuration.GetSection("Postgres")?.Value;
+    }
+    
     pgConnectionString = fallbackConfig ?? string.Empty;
 }
 
@@ -71,8 +88,9 @@ if (string.IsNullOrEmpty(pgConnectionString))
     throw new InvalidOperationException("CRITICAL: The PostgreSQL connection string could not be resolved.");
 }
 
-// Pass the strictly validated and structured string to your layout assembly
+// Pass the cleanly structured string to your layout assembly
 Roblox.Services.Database.Configure(pgConnectionString);
+
 // Config
 Roblox.Configuration.CdnBaseUrl = configuration.GetSection("CdnBaseUrl").Value!;
 Roblox.Configuration.AssetDirectory = configuration.GetSection("Directories:Asset").Value!;
