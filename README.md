@@ -1,22 +1,18 @@
 <div align="center">
 </div>
 
-<h1 align="center">Pekora/Project X 5(LATEST 30 AUGUST 2025)</h1>
-<p align="center">Pekora is roblox revival, i decided to leak this because chloe is an big racist and a femboy.</p>
+<h1 align="center">fiprii</h1>
+<p align="center">fiprii is a roblox revival partially based on the pekora/korone/projex source code.</p>
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/GoLang-blue?logo=go)](https://github.com/tooblewtf/bloxd)
-[![Dotnet 6](https://img.shields.io/badge/.NET-6.0.0-purple?logo=dotnet)](https://github.com/tooble.wtf/bloxd)
-[![Node.js](https://img.shields.io/badge/Node.JS-24.3.0-green?logo=nodedotjs)](https://github.com/tooblewtf/bloxd)
-[![trklzz](https://img.shields.io/badge/LEAKED_BY-tooble/trklzz-red?logo=github)](https://github.com/tooblewtf)
 
-Pekora is a heavily modified and skidded economy simulator source lmao
+
+this is just a really skidded economy simulator :sob:
 
 pekora discord bot : https://github.com/tooblewtf/pekora-discord-bot
 pekora clients : https://github.com/tooblewtf/pekora-client
 
-ALL LEAKED BY TOOBLE / TOOBLE TARAFINDAN LEAKLENDI
 
 </div>
 
