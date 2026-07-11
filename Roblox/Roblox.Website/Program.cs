@@ -24,33 +24,45 @@ var builder = WebApplication.CreateBuilder(args);
 // DB
 string pgConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-if (!string.IsNullOrEmpty(pgConnectionString))
+if (!string.IsNullOrEmpty(pgConnectionString) && pgConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
 {
-    // If it's a postgres:// URL format from Railway, convert it to Npgsql format
-    if (pgConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    try
     {
         var databaseUri = new Uri(pgConnectionString);
         var userInfo = databaseUri.UserInfo.Split(':');
-        
-        pgConnectionString = $"Host={databaseUri.Host};" +
-                             $"Port={databaseUri.Port};" +
-                             $"Username={userInfo[0]};" +
-                             $"Password={userInfo[1]};" +
-                             $"Database={databaseUri.LocalPath.TrimStart('/')};" +
-                             $"Pooling=true;";
+
+        // Use the native Npgsql builder to build a compliant string structure
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = databaseUri.Host,
+            Port = databaseUri.Port,
+            Username = userInfo[0],
+            Password = userInfo.Length > 1 ? userInfo[1] : string.Empty,
+            Database = databaseUri.LocalPath.TrimStart('/'),
+            Pooling = true,
+            SslMode = Npgsql.SslMode.Require, // Railway PostgreSQL requires SSL connections externally
+            TrustServerCertificate = true     // Needed to accept Railway's default internal certificates
+        };
+
+        pgConnectionString = builder.ToString();
+    }
+    catch (Exception ex)
+    {
+        throw new InvalidOperationException($"CRITICAL: Failed to parse DATABASE_URL string. Details: {ex.Message}");
     }
 }
 else
 {
-    // Fallback to standard appsettings.json string if local
+    // Local development fallback
     pgConnectionString = configuration.GetSection("Postgres").Value!;
 }
 
 if (string.IsNullOrEmpty(pgConnectionString))
 {
-    throw new InvalidOperationException("CRITICAL: The PostgreSQL connection string is missing.");
+    throw new InvalidOperationException("CRITICAL: The PostgreSQL connection string could not be resolved.");
 }
 
+// Pass the strictly validated and structured string to your layout assembly
 Roblox.Services.Database.Configure(pgConnectionString);
 
 // Config
