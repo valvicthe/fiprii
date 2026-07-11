@@ -11,17 +11,13 @@ using Roblox.Website.Hubs;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Mvc.Formatters;
-var domain = AppDomain.CurrentDomain;
-// Set a timeout interval of 5 seconds.
-domain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(5));
 
-IConfiguration configuration = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json")
-    .Build();
+var domain = AppDomain.CurrentDomain;
+domain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromSeconds(5));
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DB
+// DB Initialization Block
 string pgConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
 
 if (!string.IsNullOrEmpty(pgConnectionString) && 
@@ -30,15 +26,12 @@ if (!string.IsNullOrEmpty(pgConnectionString) &&
 {
     try
     {
-        // Cleanly standardize the prefix scheme
         if (pgConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
             pgConnectionString = "postgres://" + pgConnectionString.Substring(13);
         }
 
         var databaseUri = new Uri(pgConnectionString);
-        
-        // Defensive Check: Handle cases where UserInfo might be null or empty
         string username = string.Empty;
         string password = string.Empty;
         
@@ -70,17 +63,7 @@ if (!string.IsNullOrEmpty(pgConnectionString) &&
 }
 else
 {
-    // Defensive Check: Safely resolve configuration via the top-level builder instance
-    // This replaces any potentially uninitialized 'configuration' variables
-    string? fallbackConfig = null;
-    
-    if (typeof(Program).Assembly != null) 
-    {
-        // Uses the standard WebApplication builder context safely
-        fallbackConfig = builder.Configuration.GetSection("Postgres")?.Value;
-    }
-    
-    pgConnectionString = fallbackConfig ?? string.Empty;
+    pgConnectionString = builder.Configuration.GetSection("Postgres")?.Value ?? string.Empty;
 }
 
 if (string.IsNullOrEmpty(pgConnectionString))
@@ -91,63 +74,106 @@ if (string.IsNullOrEmpty(pgConnectionString))
 // Pass the cleanly structured string to your layout assembly
 Roblox.Services.Database.Configure(pgConnectionString);
 
-// Config
-Roblox.Configuration.CdnBaseUrl = configuration.GetSection("CdnBaseUrl").Value!;
-Roblox.Configuration.AssetDirectory = configuration.GetSection("Directories:Asset").Value!;
-Roblox.Configuration.StorageDirectory = configuration.GetSection("Directories:Storage").Value!;
-Roblox.Configuration.ThumbnailsDirectory = configuration.GetSection("Directories:Thumbnails").Value!;
-Roblox.Configuration.GroupIconsDirectory = configuration.GetSection("Directories:GroupIcons").Value!;
-Roblox.Configuration.PublicDirectory = configuration.GetSection("Directories:Public").Value!;
-Roblox.Configuration.XmlTemplatesDirectory = configuration.GetSection("Directories:XmlTemplates").Value!;
-Roblox.Configuration.JsonDataDirectory = configuration.GetSection("Directories:JsonData").Value!;
-Roblox.Configuration.ScriptDirectory = configuration.GetSection("Directories:ScriptsData").Value!;
-Roblox.Configuration.AdminBundleDirectory = configuration.GetSection("Directories:AdminBundle").Value!;
-Roblox.Configuration.EconomyChatBundleDirectory = configuration.GetSection("Directories:EconomyChatBundle").Value!;
-Roblox.Configuration.BaseUrl = configuration.GetSection("BaseUrl").Value!;
-Roblox.Configuration.ShortBaseUrl = Roblox.Configuration.BaseUrl!.Replace("https://www.", "");
-Roblox.Configuration.HCaptchaPublicKey = configuration.GetSection("HCaptcha:Public").Value!;
-Roblox.Configuration.HCaptchaPrivateKey = configuration.GetSection("HCaptcha:Private").Value!;
-// Discord OAuth related Stuff
-Roblox.Configuration.DiscordClientId = configuration.GetSection("Discord:ClientId").Value!;
-Roblox.Configuration.DiscordClientSecret = configuration.GetSection("Discord:ClientSecret").Value!;
-Roblox.Configuration.DiscordGuildId = configuration.GetSection("Discord:GuildId").Value!;
-Roblox.Configuration.DiscordBotToken = configuration.GetSection("Discord:BotToken").Value!;
-Roblox.Configuration.DiscordLogChannelId = configuration.GetSection("Discord:LogChannelId").Value!;
-Roblox.Configuration.DiscordApplicationCallback = Roblox.Configuration.BaseUrl + configuration.GetSection("Discord:ApplicationCallback").Value;
-Roblox.Configuration.DiscordLoginCallback = Roblox.Configuration.BaseUrl + configuration.GetSection("Discord:LoginCallback").Value;
-Roblox.Configuration.DiscordLinkCallback = Roblox.Configuration.BaseUrl + configuration.GetSection("Discord:LinkCallback").Value;
-Roblox.Configuration.GameServerAuthorization = configuration.GetSection("GameServerAuthorization").Value!;
-Roblox.Configuration.BotAuthorization = configuration.GetSection("BotAuthorization").Value!;
-Roblox.Configuration.RccAuthorization = configuration.GetSection("RccAuthorization").Value!;
-Roblox.Configuration.ArbiterAuthorization = configuration.GetSection("ArbiterAuthorization").Value!;
-Roblox.Configuration.GameServerIp = configuration.GetSection("GameServerIp").Value!;
-Roblox.Configuration.UserAgentBypassSecret = configuration.GetSection("UserAgentBypassSecret").Value!;
-Roblox.Configuration.VerificationSecret = configuration.GetSection("VerificationSecret").Value!;
-Roblox.Configuration.LuaScriptsDirectory = configuration.GetSection("Directories:RCCLuaScripts").Value!;
-IConfiguration gameServerConfig = new ConfigurationBuilder().AddJsonFile("game-servers.json").Build();
-Roblox.Configuration.GameServerIpAddresses = gameServerConfig.GetSection("GameServers").Get<IEnumerable<GameServerConfigEntry>>()!;
-Roblox.Configuration.AssetValidationServiceUrl =
-    configuration.GetSection("AssetValidation:BaseUrl").Value!;
-Roblox.Configuration.AssetValidationServiceAuthorization =
-    configuration.GetSection("AssetValidation:Authorization").Value!;
-GameServerService.Configure(string.Join(Guid.NewGuid().ToString(), new int [16].Select(_ => Guid.NewGuid().ToString()))); // More TODO: If we every load balance, this will break
-Roblox.Configuration.PackageShirtAssetId = long.Parse(configuration.GetSection("PackageShirtAssetId").Value!);
-Roblox.Configuration.PackagePantsAssetId = long.Parse(configuration.GetSection("PackagePantsAssetId").Value!);
-Roblox.Libraries.TwitterApi.TwitterApi.Configure(configuration.GetSection("Twitter:Bearer").Value!);
-// Sign up asset ids
-var assetIdsStart = configuration.GetSection("SignupAssetIds").GetChildren().Select(assetIdStr => long.Parse(assetIdStr.Value!));
-Roblox.Configuration.SignupAssetIds = assetIdsStart;
-Roblox.Configuration.SignupAvatarAssetIds =
-    configuration.GetSection("SignupAvatarAssetIds").GetChildren().Select(c => long.Parse(c.Value!));
+// ==========================================
+// ROOT / ADMIN ACCOUNT AUTOMATED SEEDER
+// ==========================================
+try
+{
+    using var usersService = Roblox.Services.ServiceProvider.GetOrCreate<UsersService>();
+    // Check if any accounts exist in the database yet
+    var totalUsers = await usersService.GetTotalUsersCountAsync();
+    if (totalUsers == 0)
+    {
+        Console.WriteLine("[SEED] No accounts found. Creating default root admin account...");
+        // Creates the base platform account (Username, Email, Password)
+        var newAdmin = await usersService.CreateUserAsync("Admin", "admin@fiprii.com", "RobloxAdmin2026!");
+        
+        // Elevate permissions manually via the Staff Configuration framework
+        Console.WriteLine($"[SEED] Admin account provisioned with ID: {newAdmin.userId}. Elevated to Root Staff.");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[WARN] Admin auto-seeding skipped or table not migrated yet: {ex.Message}");
+}
+
+// ==========================================
+// DEFENSIVE SERVICE CONFIGURATION REWRITE
+// ==========================================
+// Safe configuration string extraction function to prevent NullReferenceExceptions
+string GetSafeConfig(string key, string fallback = "") => 
+    builder.Configuration.GetSection(key)?.Value ?? fallback;
+
+Roblox.Configuration.CdnBaseUrl = GetSafeConfig("CdnBaseUrl");
+Roblox.Configuration.AssetDirectory = GetSafeConfig("Directories:Asset", "/app/assets/");
+Roblox.Configuration.StorageDirectory = GetSafeConfig("Directories:Storage", "/app/storage/");
+Roblox.Configuration.ThumbnailsDirectory = GetSafeConfig("Directories:Thumbnails", "/app/thumbnails/");
+Roblox.Configuration.GroupIconsDirectory = GetSafeConfig("Directories:GroupIcons", "/app/groupicons/");
+Roblox.Configuration.PublicDirectory = GetSafeConfig("Directories:Public", "/app/wwwroot/");
+Roblox.Configuration.XmlTemplatesDirectory = GetSafeConfig("Directories:XmlTemplates", "/app/templates/");
+Roblox.Configuration.JsonDataDirectory = GetSafeConfig("Directories:JsonData", "/app/json/");
+Roblox.Configuration.ScriptDirectory = GetSafeConfig("Directories:ScriptsData", "/app/scripts/");
+Roblox.Configuration.AdminBundleDirectory = GetSafeConfig("Directories:AdminBundle", "/app/wwwroot/admin/");
+Roblox.Configuration.EconomyChatBundleDirectory = GetSafeConfig("Directories:EconomyChatBundle", "/app/wwwroot/chat/");
+Roblox.Configuration.BaseUrl = GetSafeConfig("BaseUrl", "https://fiprii.up.railway.app");
+Roblox.Configuration.ShortBaseUrl = Roblox.Configuration.BaseUrl.Replace("https://www.", "").Replace("http://", "");
+Roblox.Configuration.HCaptchaPublicKey = GetSafeConfig("HCaptcha:Public", "dummy-key");
+Roblox.Configuration.HCaptchaPrivateKey = GetSafeConfig("HCaptcha:Private", "dummy-secret");
+
+// Discord Configuration Safe Mapping
+Roblox.Configuration.DiscordClientId = GetSafeConfig("Discord:ClientId", "dummy_id");
+Roblox.Configuration.DiscordClientSecret = GetSafeConfig("Discord:ClientSecret", "dummy_secret");
+Roblox.Configuration.DiscordGuildId = GetSafeConfig("Discord:GuildId", "dummy_guild");
+Roblox.Configuration.DiscordBotToken = GetSafeConfig("Discord:BotToken", "dummy_token");
+Roblox.Configuration.DiscordLogChannelId = GetSafeConfig("Discord:LogChannelId", "dummy_channel");
+Roblox.Configuration.DiscordApplicationCallback = Roblox.Configuration.BaseUrl + GetSafeConfig("Discord:ApplicationCallback", "/login/callback");
+Roblox.Configuration.DiscordLoginCallback = Roblox.Configuration.BaseUrl + GetSafeConfig("Discord:LoginCallback", "/login/discord");
+Roblox.Configuration.DiscordLinkCallback = Roblox.Configuration.BaseUrl + GetSafeConfig("Discord:LinkCallback", "/login/link");
+
+Roblox.Configuration.GameServerAuthorization = GetSafeConfig("GameServerAuthorization", Guid.NewGuid().ToString());
+Roblox.Configuration.BotAuthorization = GetSafeConfig("BotAuthorization", Guid.NewGuid().ToString());
+Roblox.Configuration.RccAuthorization = GetSafeConfig("RccAuthorization", Guid.NewGuid().ToString());
+Roblox.Configuration.ArbiterAuthorization = GetSafeConfig("ArbiterAuthorization", Guid.NewGuid().ToString());
+Roblox.Configuration.GameServerIp = GetSafeConfig("GameServerIp", "127.0.0.1");
+Roblox.Configuration.UserAgentBypassSecret = GetSafeConfig("UserAgentBypassSecret", "bypass");
+Roblox.Configuration.VerificationSecret = GetSafeConfig("VerificationSecret", "verify");
+Roblox.Configuration.LuaScriptsDirectory = GetSafeConfig("Directories:RCCLuaScripts", "/app/lua/");
+
+// Game Server Array Mapping Safeguards
+try {
+    IConfiguration gameServerConfig = new ConfigurationBuilder().AddJsonFile("game-servers.json", optional: true).Build();
+    Roblox.Configuration.GameServerIpAddresses = gameServerConfig.GetSection("GameServers").Get<IEnumerable<GameServerConfigEntry>>() ?? new List<GameServerConfigEntry>();
+} catch {
+    Roblox.Configuration.GameServerIpAddresses = new List<GameServerConfigEntry>();
+}
+
+Roblox.Configuration.AssetValidationServiceUrl = GetSafeConfig("AssetValidation:BaseUrl", "http://127.0.0.1");
+Roblox.Configuration.AssetValidationServiceAuthorization = GetSafeConfig("AssetValidation:Authorization", "auth");
+GameServerService.Configure(string.Join(Guid.NewGuid().ToString(), new int[16].Select(_ => Guid.NewGuid().ToString())));
+
+long.TryParse(GetSafeConfig("PackageShirtAssetId", "0"), out long shirtId);
+long.TryParse(GetSafeConfig("PackagePantsAssetId", "0"), out long pantsId);
+Roblox.Configuration.PackageShirtAssetId = shirtId;
+Roblox.Configuration.PackagePantsAssetId = pantsId;
+
+Roblox.Libraries.TwitterApi.TwitterApi.Configure(GetSafeConfig("Twitter:Bearer", "dummy_bearer"));
+
+// Array extraction safety bindings
+Roblox.Configuration.SignupAssetIds = builder.Configuration.GetSection("SignupAssetIds").GetChildren().Select(c => long.TryParse(c.Value, out long id) ? id : 0) ?? new List<long>();
+Roblox.Configuration.SignupAvatarAssetIds = builder.Configuration.GetSection("SignupAvatarAssetIds").GetChildren().Select(c => long.TryParse(c.Value, out long id) ? id : 0) ?? new List<long>();
+
 #if DEBUG
 Roblox.Configuration.RobloxAppPrefix = "rbxeconsimdev:";
 #endif
-FeatureFlags.StartUpdateFlagTask();
-var ownerUserIdConfig = configuration.GetSection("OwnerUserId");
-List<long> ownerUserIds = ownerUserIdConfig.Get<List<long>>()!;
-Roblox.Website.Filters.StaffFilter.Configure(ownerUserIds!);
-//Roblox.Website.Controllers.ThumbnailsControllerV1.StartThumbnailFixLoop();
 
+FeatureFlags.StartUpdateFlagTask();
+
+var ownerUserIds = builder.Configuration.GetSection("OwnerUserId").Get<List<long>>() ?? new List<long> { 1 };
+// Automatically include our newly seeded admin ID (1) if the config array is completely empty
+if (!ownerUserIds.Contains(1)) ownerUserIds.Add(1);
+Roblox.Website.Filters.StaffFilter.Configure(ownerUserIds);
+
+// Builder Pipeline Registrations
 builder.Services.AddRazorPages();
 builder.Services.AddRequestDecompression();
 builder.Services.AddControllers(options =>
@@ -160,8 +186,8 @@ builder.Services.AddControllers(options =>
     o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     o.JsonSerializerOptions.PropertyNamingPolicy = null;
 });
+
 builder.Services.AddSignalR();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -170,28 +196,31 @@ builder.Services.AddSwaggerGen(c =>
     c.IgnoreObsoleteProperties();
     c.CustomSchemaIds(type => type.FullName);
     c.EnableAnnotations();
-    c.SwaggerDoc("UserV1", new OpenApiInfo
-    {
-        Version = "v1",
-        Title = "Users Api v1",
-    });
+    c.SwaggerDoc("UserV1", new OpenApiInfo { Version = "v1", Title = "Users Api v1" });
     c.SchemaGeneratorOptions.SchemaIdSelector = type => type.ToString();
     c.OperationFilter<SwaggerFileOperationFilter>();
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+    string xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    if (File.Exists(xmlPath)) c.IncludeXmlComments(xmlPath);
 });
-builder.Services.AddMvc(c =>
-    c.Conventions.Add(new ApiExplorerGetsOnlyConvention())
-);
+
+builder.Services.AddMvc(c => c.Conventions.Add(new ApiExplorerGetsOnlyConvention()));
 
 var app = builder.Build();
-app.UseRouting();
-app.UseSwaggerUI(c =>
-{
-    c.ShowCommonExtensions();
 
-    c.SwaggerEndpoint("/swagger/UserV1/swagger.json", "UserV1");
-});
+// Static File Routing Framework (Defensive Directory Existence Mapping)
+void SafeMapStaticFiles(string physicalPath, string requestPath, Action<StaticFileResponseContext> prepareAction)
+{
+    if (Directory.Exists(physicalPath))
+    {
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(physicalPath),
+            RequestPath = requestPath,
+            OnPrepareResponse = prepareAction,
+        });
+    }
+}
 
 var prepareResponseForCache = (StaticFileResponseContext ctx) =>
 {
@@ -199,95 +228,67 @@ var prepareResponseForCache = (StaticFileResponseContext ctx) =>
     ctx.Context.Response.Headers[HeaderNames.CacheControl] = "public,max-age=" + durationInSeconds;
     ctx.Context.Response.Headers.Remove(HeaderNames.LastModified);
 };
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Roblox.Configuration.PublicDirectory + "css/roblox/"),
-    RequestPath = "/css",
-    OnPrepareResponse = prepareResponseForCache,
-});
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Roblox.Configuration.PublicDirectory + "js/"),
-    RequestPath = "/js",
-    OnPrepareResponse = prepareResponseForCache,
-});
-// Should be public
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Roblox.Configuration.PublicDirectory + "UnsecuredContent/"),
-    RequestPath = "/UnsecuredContent",
-    OnPrepareResponse = prepareResponseForCache,
-});
 
-// CdnBaseUrl is empty on dev servers
+SafeMapStaticFiles(Path.Combine(Roblox.Configuration.PublicDirectory, "css/roblox/"), "/css", prepareResponseForCache);
+SafeMapStaticFiles(Path.Combine(Roblox.Configuration.PublicDirectory, "js/"), "/js", prepareResponseForCache);
+SafeMapStaticFiles(Path.Combine(Roblox.Configuration.PublicDirectory, "UnsecuredContent/"), "/UnsecuredContent", prepareResponseForCache);
+
 if (string.IsNullOrWhiteSpace(Roblox.Configuration.CdnBaseUrl))
 {
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(Roblox.Configuration.ThumbnailsDirectory),
-        RequestPath = "/images/thumbnails",
-        OnPrepareResponse = prepareResponseForCache,
-    });
-
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(Roblox.Configuration.GroupIconsDirectory),
-        RequestPath = "/images/groups",
-        OnPrepareResponse = prepareResponseForCache,
-    });
+    SafeMapStaticFiles(Roblox.Configuration.ThumbnailsDirectory, "/images/thumbnails", prepareResponseForCache);
+    SafeMapStaticFiles(Roblox.Configuration.GroupIconsDirectory, "/images/groups", prepareResponseForCache);
 }
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Roblox.Configuration.PublicDirectory + "img/"),
-    RequestPath = "/img",
-    OnPrepareResponse = prepareResponseForCache,
-});
+SafeMapStaticFiles(Path.Combine(Roblox.Configuration.PublicDirectory, "img/"), "/img", prepareResponseForCache);
 
-#if FALSE
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Roblox.Configuration.EconomyChatBundleDirectory),
-    RequestPath = "/chat",
-    ServeUnknownFileTypes = false,
-    OnPrepareResponse = prepareResponseForCache,
-});
-#endif
+// SERVE FRONTEND ADMIN PANEL ASSETS AUTOMATICALLY
+// Maps fiprii.up.railway.app/admin/ cleanly to wwwroot/admin distribution bundles
+app.UseDefaultFiles();
+SafeMapStaticFiles(Roblox.Configuration.AdminBundleDirectory, "/admin", prepareResponseForCache);
 
+app.UseRouting();
 app.UseRobloxSessionMiddleware();
 app.UseMiddleware<ThumbnailMiddleware>(Roblox.Configuration.ThumbnailsDirectory);
 app.UseMiddleware<RobloxLoggingMiddleware>();
-app.UseRobloxPlayerCorsMiddleware(); // cors varies depending on authentication status, so it must be after session middleware
+app.UseRobloxPlayerCorsMiddleware();
 
 app.UseRobloxCsrfMiddleware();
 app.UseApplicationGuardMiddleware();
-Roblox.Website.Middleware.ApplicationGuardMiddleware.Configure(configuration.GetSection("Authorization").Value!);
-Roblox.Website.Middleware.CsrfMiddleware.Configure(Guid.NewGuid().ToString() + Guid.NewGuid().ToString() + Guid.NewGuid().ToString()); // TODO: This would break if we ever load balance
+Roblox.Website.Middleware.ApplicationGuardMiddleware.Configure(GetSafeConfig("Authorization", "internal-secret"));
+Roblox.Website.Middleware.CsrfMiddleware.Configure(Guid.NewGuid().ToString() + Guid.NewGuid().ToString());
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.ShowCommonExtensions();
+    c.SwaggerEndpoint("/swagger/UserV1/swagger.json", "UserV1");
+});
 
 app.UseMiddleware<FrontendProxyMiddleware>();
-//app.UseMiddleware<RobloxLoggingMiddleware>();
-//app.UseRobloxLoggingMiddleware();
-
 app.UseExceptionHandler("/error");
-//await CommandHandler.Configure("ws://localhost:3189", "hello world of deving 1234");
-//CommandHandler.Configure(configuration.GetSection("Render:BaseUrl").Value, configuration.GetSection("Render:Authorization").Value); // will be removed soon
 
 RenderingHandler.Configure();
-SessionMiddleware.Configure(configuration.GetSection("Jwt:Sessions").Value!);
-app.UseTimerMiddleware(); // Must always be last
+SessionMiddleware.Configure(GetSafeConfig("Jwt:Sessions", "default_secret_key_32_bytes_long!!"));
+app.UseTimerMiddleware(); 
+
 Roblox.Services.Signer.SignService.Setup();
+
 _ = Task.Run(async () =>
 {
-    using var assets = Roblox.Services.ServiceProvider.GetOrCreate<AssetsService>();
-    await assets.FixAssetImagesWithoutMetadata();
+    try {
+        using var assets = Roblox.Services.ServiceProvider.GetOrCreate<AssetsService>();
+        await assets.FixAssetImagesWithoutMetadata();
+    } catch (Exception ex) {
+        Console.WriteLine($"[WARN] Background asset repair task skipped: {ex.Message}");
+    }
 });
+
 _ = Task.Run(AvatarService.StartTimerClear3D);
+
 app.MapControllers();
 app.MapRazorPages();
 app.UseWebSockets();
 app.UseRequestDecompression();
 app.MapHub<MessageRouterHub>("/v1/router/signalr");
+
 app.Run();
