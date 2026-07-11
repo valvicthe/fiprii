@@ -24,14 +24,22 @@ var builder = WebApplication.CreateBuilder(args);
 // DB
 string pgConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-if (!string.IsNullOrEmpty(pgConnectionString) && pgConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+// Handled both postgres:// and postgresql:// URL schemes
+if (!string.IsNullOrEmpty(pgConnectionString) && 
+    (pgConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+     pgConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
 {
     try
     {
+        // Replace scheme prefix cleanly so the .NET Uri parser handles the host/user mapping correctly
+        if (pgConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            pgConnectionString = "postgres://" + pgConnectionString.Substring(13);
+        }
+
         var databaseUri = new Uri(pgConnectionString);
         var userInfo = databaseUri.UserInfo.Split(':');
 
-        // Renamed to 'connectionStringBuilder' to avoid conflict with the WebApplication builder
         var connectionStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder
         {
             Host = databaseUri.Host,
@@ -53,8 +61,9 @@ if (!string.IsNullOrEmpty(pgConnectionString) && pgConnectionString.StartsWith("
 }
 else
 {
-    // Local development fallback
-    pgConnectionString = configuration.GetSection("Postgres").Value!;
+    // Local / Admin development fallback configuration check
+    var fallbackConfig = configuration.GetSection("Postgres").Value;
+    pgConnectionString = fallbackConfig ?? string.Empty;
 }
 
 if (string.IsNullOrEmpty(pgConnectionString))
@@ -64,7 +73,6 @@ if (string.IsNullOrEmpty(pgConnectionString))
 
 // Pass the strictly validated and structured string to your layout assembly
 Roblox.Services.Database.Configure(pgConnectionString);
-
 // Config
 Roblox.Configuration.CdnBaseUrl = configuration.GetSection("CdnBaseUrl").Value!;
 Roblox.Configuration.AssetDirectory = configuration.GetSection("Directories:Asset").Value!;
