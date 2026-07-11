@@ -31,8 +31,8 @@ if (!string.IsNullOrEmpty(pgConnectionString) && pgConnectionString.StartsWith("
         var databaseUri = new Uri(pgConnectionString);
         var userInfo = databaseUri.UserInfo.Split(':');
 
-        // Use the native Npgsql builder to build a compliant string structure
-        var builder = new Npgsql.NpgsqlConnectionStringBuilder
+        // Renamed to 'connectionStringBuilder' to avoid conflict with the WebApplication builder
+        var connectionStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder
         {
             Host = databaseUri.Host,
             Port = databaseUri.Port,
@@ -40,11 +40,11 @@ if (!string.IsNullOrEmpty(pgConnectionString) && pgConnectionString.StartsWith("
             Password = userInfo.Length > 1 ? userInfo[1] : string.Empty,
             Database = databaseUri.LocalPath.TrimStart('/'),
             Pooling = true,
-            SslMode = Npgsql.SslMode.Require, // Railway PostgreSQL requires SSL connections externally
-            TrustServerCertificate = true     // Needed to accept Railway's default internal certificates
+            SslMode = Npgsql.SslMode.Require, 
+            TrustServerCertificate = true     
         };
 
-        pgConnectionString = builder.ToString();
+        pgConnectionString = connectionStringBuilder.ToString();
     }
     catch (Exception ex)
     {
