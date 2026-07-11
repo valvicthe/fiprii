@@ -22,28 +22,36 @@ IConfiguration configuration = new ConfigurationBuilder()
 var builder = WebApplication.CreateBuilder(args);
 
 // DB
-// 1. Fetch Railway's automatically injected PostgreSQL environment variable
 string pgConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-// 2. Fall back to appsettings.json "Postgres" key if running locally
-if (string.IsNullOrEmpty(pgConnectionString))
+if (!string.IsNullOrEmpty(pgConnectionString))
 {
+    // If it's a postgres:// URL format from Railway, convert it to Npgsql format
+    if (pgConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        var databaseUri = new Uri(pgConnectionString);
+        var userInfo = databaseUri.UserInfo.Split(':');
+        
+        pgConnectionString = $"Host={databaseUri.Host};" +
+                             $"Port={databaseUri.Port};" +
+                             $"Username={userInfo[0]};" +
+                             $"Password={userInfo[1]};" +
+                             $"Database={databaseUri.LocalPath.TrimStart('/')};" +
+                             $"Pooling=true;";
+    }
+}
+else
+{
+    // Fallback to standard appsettings.json string if local
     pgConnectionString = configuration.GetSection("Postgres").Value!;
 }
 
-// 3. Fallback check to prevent an ambiguous driver crash
 if (string.IsNullOrEmpty(pgConnectionString))
 {
-    throw new InvalidOperationException("CRITICAL: The PostgreSQL connection string is missing. Check your 'DATABASE_URL' variable setup.");
+    throw new InvalidOperationException("CRITICAL: The PostgreSQL connection string is missing.");
 }
 
-// 4. Configure the system services
 Roblox.Services.Database.Configure(pgConnectionString);
-
-// Do the exact same thing for Redis if it's deployed in Railway
-string redisConnectionString = Environment.GetEnvironmentVariable("REDIS_URL") 
-                               ?? configuration.GetSection("Redis").Value!;
-Roblox.Services.Cache.Configure(redisConnectionString);
 
 // Config
 Roblox.Configuration.CdnBaseUrl = configuration.GetSection("CdnBaseUrl").Value!;
