@@ -1,7 +1,7 @@
 import ErrorPage from "../components/errorPage";
 
 const errorCode = 404;
-const errorTitle = "Page cannot be found or no longer exists";
-const errorDesc = "Page Not found";
+const errorTitle = "This page dont exist bro";
+const errorDesc = "Page Not fuckin found";
 
 export default () => <ErrorPage title={errorTitle} desc={errorDesc} code={errorCode} />
